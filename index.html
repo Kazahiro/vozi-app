@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="VOZI">
+<link rel="manifest" href="manifest.json">
+<title>VOZI</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+:root{
+  --bg:#0a0a0f;--s1:#111118;--s2:#18181f;--s3:#22222c;--s4:#2a2a36;
+  --b1:rgba(255,255,255,0.05);--b2:rgba(255,255,255,0.09);--b3:rgba(255,255,255,0.15);
+  --txt:#f0f0f8;--muted:rgba(240,240,248,0.45);--dim:rgba(240,240,248,0.22);
+  --accent:#7c6aff;--accent2:#a78bfa;--glow:rgba(124,106,255,0.25);
+  --green:#34d399;--amber:#fbbf24;--red:#f87171;--blue:#60a5fa;--pink:#f472b6;
+  --mono:'DM Mono',monospace;--sans:'Syne',sans-serif;--r:12px;--r2:18px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--sans);overflow:hidden}
+.app{display:flex;flex-direction:column;height:100dvh;max-width:480px;margin:0 auto;position:relative}
+
+/* ── BOTTOM NAV ── */
+.bnav{display:flex;align-items:center;justify-content:space-around;padding:10px 0 max(10px,env(safe-area-inset-bottom));background:var(--s1);border-top:1px solid var(--b1);flex-shrink:0;z-index:10}
+.bnav-btn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 16px;border:none;background:transparent;cursor:pointer;transition:all .15s;border-radius:10px}
+.bnav-btn .bi{font-size:20px;transition:transform .2s}
+.bnav-btn .bl{font-family:var(--mono);font-size:9px;color:var(--muted);transition:color .15s}
+.bnav-btn.active .bl{color:var(--accent2)}
+.bnav-btn.active .bi{transform:scale(1.1)}
+
+/* ── PAGES ── */
+.page{display:none;flex:1;flex-direction:column;overflow:hidden}
+.page.active{display:flex}
+
+/* ══════════════════════════════════════
+   VOICE PAGE — ChatGPT style
+══════════════════════════════════════ */
+#page-voice{background:var(--bg);position:relative}
+
+/* Mode toggle */
+.voice-mode-toggle{display:flex;gap:6px;padding:12px 16px 0;flex-shrink:0;justify-content:center}
+.vmt-btn{font-family:var(--mono);font-size:11px;padding:6px 16px;border-radius:20px;border:1px solid var(--b2);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
+.vmt-btn.active{background:var(--s3);color:var(--txt);border-color:var(--b3)}
+
+/* CHAT MODE */
+.chat-view{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.chat-view.hidden{display:none}
+.msgs{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth}
+.msgs::-webkit-scrollbar{width:3px}
+.msgs::-webkit-scrollbar-thumb{background:var(--s3);border-radius:2px}
+.msg{max-width:88%;padding:11px 15px;border-radius:16px;font-size:14px;line-height:1.6}
+.msg.user{background:var(--accent);color:#fff;border-radius:16px 4px 16px 16px;align-self:flex-end}
+.msg.ai{background:var(--s2);border:1px solid var(--b1);border-radius:4px 16px 16px 16px;align-self:flex-start;color:var(--txt)}
+.msg.sys{background:transparent;border:1px solid var(--b1);color:var(--muted);font-family:var(--mono);font-size:10px;align-self:center;border-radius:20px;padding:4px 12px;max-width:96%;text-align:center}
+.msg-label{font-family:var(--mono);font-size:9px;color:var(--accent2);letter-spacing:.5px;margin-bottom:4px}
+.think{display:flex;gap:4px;align-items:center}
+.td{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:td 1.2s infinite}
+.td:nth-child(2){animation-delay:.2s}.td:nth-child(3){animation-delay:.4s}
+@keyframes td{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.chip{font-family:var(--mono);font-size:10px;padding:3px 9px;border-radius:20px;border:1px solid var(--b2);background:var(--s3);color:var(--accent2);cursor:pointer;transition:all .15s}
+.chip.g{border-color:rgba(52,211,153,.35);color:var(--green);background:rgba(52,211,153,.07);cursor:default}
+.chip.w{border-color:rgba(251,191,36,.35);color:var(--amber);background:rgba(251,191,36,.07);cursor:pointer}
+
+/* VOICE (SPHERE) MODE */
+.sphere-view{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px}
+.sphere-view.hidden{display:none}
+.sphere-wrap{position:relative;width:180px;height:180px;display:flex;align-items:center;justify-content:center}
+.sphere-rings{position:absolute;inset:0}
+.sring{position:absolute;border-radius:50%;border:1px solid var(--accent);opacity:0;top:50%;left:50%;transform:translate(-50%,-50%)}
+.sring-1{width:190px;height:190px}
+.sring-2{width:220px;height:220px}
+.sring-3{width:255px;height:255px}
+.listening .sring{animation:sra 2.2s infinite ease-out}
+.listening .sring-2{animation-delay:.5s}
+.listening .sring-3{animation-delay:1s}
+@keyframes sra{0%{opacity:.5;transform:translate(-50%,-50%) scale(.88)}100%{opacity:0;transform:translate(-50%,-50%) scale(1)}}
+.sphere{width:160px;height:160px;border-radius:50%;background:radial-gradient(circle at 38% 35%, #9b8bff 0%, #5a47d1 40%, #2d1f8a 75%, #150d4a 100%);cursor:pointer;transition:all .3s;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.sphere::before{content:'';position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 35% 30%, rgba(255,255,255,0.22) 0%, transparent 60%)}
+.sphere.listening{animation:sp 1.4s infinite ease-in-out;box-shadow:0 0 60px rgba(124,106,255,0.5)}
+@keyframes sp{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+.sphere-bars{display:flex;align-items:center;gap:4px;opacity:0;transition:opacity .3s}
+.sphere.listening .sphere-bars{opacity:1}
+.sbar{width:4px;border-radius:3px;background:rgba(255,255,255,0.8)}
+.sphere.listening .sbar{animation:sbr 1s infinite ease-in-out}
+.sbar:nth-child(1){height:12px;animation-delay:0s}.sbar:nth-child(2){height:22px;animation-delay:.15s}
+.sbar:nth-child(3){height:30px;animation-delay:.3s}.sbar:nth-child(4){height:22px;animation-delay:.15s}
+.sbar:nth-child(5){height:12px;animation-delay:0s}
+@keyframes sbr{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1)}}
+.sphere-hint{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center;line-height:1.6}
+.sphere-transcript{background:var(--s2);border:1px solid var(--b2);border-radius:14px;padding:12px 16px;font-size:13px;color:var(--txt);line-height:1.6;max-width:90%;min-height:48px;text-align:center;font-style:italic;color:var(--muted)}
+.sphere-transcript.has-text{color:var(--txt);font-style:normal}
+
+/* INPUT BAR */
+.input-bar{padding:10px 14px 12px;display:flex;gap:8px;align-items:flex-end;flex-shrink:0;border-top:1px solid var(--b1)}
+.input-wrap{flex:1;position:relative}
+.txt-in{width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:var(--r);padding:10px 38px 10px 14px;font-family:var(--mono);font-size:13px;color:var(--txt);outline:none;resize:none;line-height:1.5;max-height:90px;min-height:42px;transition:border-color .2s}
+.txt-in:focus{border-color:var(--accent)}
+.txt-in::placeholder{color:var(--dim)}
+.send-btn{position:absolute;right:7px;bottom:7px;width:27px;height:27px;border-radius:8px;background:var(--accent);border:none;color:#fff;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.send-btn:hover{background:var(--accent2)}
+
+/* ══════════════════════════════════════
+   CALENDAR PAGE
+══════════════════════════════════════ */
+.cal-header{padding:14px 16px 10px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.cal-nav-btn{background:none;border:1px solid var(--b2);color:var(--muted);border-radius:8px;width:30px;height:30px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.cal-nav-btn:hover{color:var(--txt);border-color:var(--b3)}
+.cal-month-label{font-size:15px;font-weight:700;text-transform:capitalize}
+.cal-add-btn{font-family:var(--mono);font-size:11px;padding:5px 12px;border-radius:8px;border:1px solid rgba(124,106,255,.4);background:rgba(124,106,255,.1);color:var(--accent2);cursor:pointer;transition:all .15s}
+.cal-add-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.cal-grid{padding:0 12px 8px;flex-shrink:0}
+.cal-dow{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;margin-bottom:4px}
+.cal-dow span{font-family:var(--mono);font-size:10px;color:var(--muted);padding:3px 0}
+.cal-days{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-day{aspect-ratio:1;border-radius:7px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;position:relative;border:1px solid transparent;gap:2px}
+.cal-day:hover{background:var(--s2)}
+.cal-day.other{color:var(--dim)}
+.cal-day.today{border-color:var(--accent);color:var(--accent)}
+.cal-day.selected{background:var(--accent);color:#fff;border-color:var(--accent)}
+.cal-day-dots{display:flex;gap:2px;justify-content:center}
+.cal-dot{width:4px;height:4px;border-radius:50%}
+.cal-day.selected .cal-dot{background:#fff !important}
+.cal-events-panel{flex:1;overflow-y:auto;padding:0 14px 14px;display:flex;flex-direction:column;gap:8px}
+.cal-events-panel::-webkit-scrollbar{width:3px}
+.cal-events-panel::-webkit-scrollbar-thumb{background:var(--s3);border-radius:2px}
+.cal-day-label{font-family:var(--mono);font-size:11px;color:var(--muted);padding:4px 0;flex-shrink:0;text-transform:capitalize}
+.ev-card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:10px 13px;display:flex;align-items:flex-start;gap:10px;transition:border-color .15s;cursor:pointer}
+.ev-card:hover{border-color:var(--b3)}
+.ev-color{width:4px;border-radius:2px;flex-shrink:0;align-self:stretch;min-height:32px}
+.ev-body{flex:1}
+.ev-title{font-size:13px;font-weight:500;margin-bottom:3px}
+.ev-meta{display:flex;align-items:center;gap:6px}
+.ev-time{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.ev-src-badge{font-family:var(--mono);font-size:9px;padding:1px 6px;border-radius:4px;background:rgba(52,211,153,.1);color:var(--green)}
+.ev-del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:12px;transition:color .15s;flex-shrink:0}
+.ev-del:hover{color:var(--red)}
+.no-ev{color:var(--dim);font-size:12px;text-align:center;padding:20px;font-family:var(--mono)}
+
+/* ══════════════════════════════════════
+   TASKS PAGE — Notion/Trello style
+══════════════════════════════════════ */
+.tasks-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 0;flex-shrink:0}
+.tasks-header-title{font-size:16px;font-weight:700}
+.tasks-header-actions{display:flex;gap:6px}
+.tasks-view-btn{font-family:var(--mono);font-size:10px;padding:5px 10px;border-radius:8px;border:1px solid var(--b2);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
+.tasks-view-btn.active{background:var(--s3);color:var(--txt)}
+.tasks-filters{display:flex;gap:5px;padding:10px 16px 0;flex-shrink:0;overflow-x:auto;scrollbar-width:none}
+.tasks-filters::-webkit-scrollbar{display:none}
+.tf{font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:20px;border:1px solid var(--b2);background:transparent;color:var(--muted);cursor:pointer;white-space:nowrap;transition:all .15s}
+.tf.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* LIST VIEW */
+.tasks-list-view{flex:1;overflow-y:auto;padding:10px 14px;display:flex;flex-direction:column;gap:6px}
+.tasks-list-view::-webkit-scrollbar{width:3px}
+.tasks-list-view::-webkit-scrollbar-thumb{background:var(--s3);border-radius:2px}
+.task-row{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:11px 13px;display:flex;align-items:flex-start;gap:10px;transition:border-color .15s;cursor:pointer}
+.task-row:hover{border-color:var(--b2)}
+.task-cb{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--b3);cursor:pointer;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:10px;transition:all .15s}
+.task-cb.done{background:var(--green);border-color:var(--green);color:var(--bg)}
+.task-body{flex:1;min-width:0}
+.task-title-text{font-size:13px;font-weight:500;line-height:1.4;margin-bottom:3px}
+.task-title-text.done{text-decoration:line-through;color:var(--muted)}
+.task-meta-row{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.tbadge{font-family:var(--mono);font-size:10px;padding:2px 6px;border-radius:4px}
+.pri-alta{background:rgba(248,113,113,.15);color:var(--red)}
+.pri-media{background:rgba(251,191,36,.12);color:var(--amber)}
+.pri-baja{background:rgba(96,165,250,.12);color:var(--blue)}
+.date-b{font-family:var(--mono);font-size:10px;color:var(--dim)}
+.proj-b{font-family:var(--mono);font-size:10px;padding:2px 6px;border-radius:4px;background:var(--s3);color:var(--accent2)}
+.gcal-b{font-family:var(--mono);font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(52,211,153,.1);color:var(--green)}
+.overdue-b{font-size:10px;color:var(--red);font-family:var(--mono)}
+.task-del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:12px;padding:0 2px;transition:color .15s;flex-shrink:0;margin-top:2px}
+.task-del:hover{color:var(--red)}
+.tl-overdue{border-left:2px solid var(--red)}
+.tl-today{border-left:2px solid var(--amber)}
+
+/* KANBAN VIEW */
+.kanban-view{flex:1;overflow-x:auto;display:flex;gap:10px;padding:10px 14px;scrollbar-width:thin;scrollbar-color:var(--s3) transparent}
+.kanban-view::-webkit-scrollbar{height:4px}
+.kanban-view::-webkit-scrollbar-thumb{background:var(--s3);border-radius:2px}
+.kanban-view.hidden{display:none}
+.tasks-list-view.hidden{display:none}
+.k-col{min-width:220px;width:220px;display:flex;flex-direction:column;gap:8px;flex-shrink:0}
+.k-col-hdr{display:flex;align-items:center;gap:6px;padding:0 2px;flex-shrink:0}
+.k-col-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.k-col-title{font-size:12px;font-weight:600;flex:1}
+.k-col-count{font-family:var(--mono);font-size:10px;color:var(--muted);background:var(--s2);padding:2px 7px;border-radius:20px}
+.k-cards{display:flex;flex-direction:column;gap:6px;flex:1;overflow-y:auto}
+.k-cards::-webkit-scrollbar{width:0}
+.k-card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:10px 12px;cursor:pointer;transition:border-color .15s}
+.k-card:hover{border-color:var(--b2)}
+.k-card-title{font-size:12px;font-weight:500;line-height:1.4;margin-bottom:6px}
+.k-card-title.done{text-decoration:line-through;color:var(--muted)}
+.k-card-bottom{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.k-add{background:transparent;border:1px dashed var(--b2);border-radius:var(--r);padding:8px;font-size:12px;color:var(--muted);cursor:pointer;transition:all .15s;width:100%;font-family:var(--mono);text-align:center}
+.k-add:hover{border-color:var(--accent);color:var(--accent2)}
+
+/* ══════════════════════════════════════
+   PROJECTS PAGE — Notion style
+══════════════════════════════════════ */
+.proj-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 0;flex-shrink:0}
+.proj-header-title{font-size:16px;font-weight:700}
+.proj-wrap{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.proj-wrap::-webkit-scrollbar{width:3px}
+.proj-wrap::-webkit-scrollbar-thumb{background:var(--s3);border-radius:2px}
+.proj-card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r2);overflow:hidden;transition:border-color .15s}
+.proj-card:hover{border-color:var(--b2)}
+.proj-card-hdr{padding:14px 16px 10px;cursor:pointer}
+.proj-top-row{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px}
+.proj-emoji{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;cursor:pointer;border:1px solid var(--b1)}
+.proj-info{flex:1}
+.proj-name-el{font-size:14px;font-weight:700;margin-bottom:2px}
+.proj-desc-el{font-size:12px;color:var(--muted);line-height:1.4}
+.proj-prog-row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.pbar{flex:1;height:6px;background:var(--s3);border-radius:6px;overflow:hidden}
+.pbar-fill{height:100%;border-radius:6px;background:var(--accent);transition:width .5s}
+.pbar-pct{font-family:var(--mono);font-size:10px;color:var(--muted);min-width:28px;text-align:right}
+.proj-stats-row{display:flex;gap:6px}
+.pstat{font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:4px;background:var(--s2)}
+.pstat.ok{color:var(--green);background:rgba(52,211,153,.1)}
+.pstat.pend{color:var(--amber);background:rgba(251,191,36,.1)}
+
+/* Subtask area */
+.proj-subtasks{border-top:1px solid var(--b1);padding:10px 16px 14px;display:none}
+.proj-card.open .proj-subtasks{display:block}
+.stask-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--b1)}
+.stask-item:last-child{border-bottom:none}
+.stask-cb{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--b3);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;transition:all .15s}
+.stask-cb.done{background:var(--green);border-color:var(--green);color:var(--bg)}
+.stask-text{flex:1;font-size:12px;line-height:1.4}
+.stask-text.done{text-decoration:line-through;color:var(--muted)}
+.stask-del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:11px;transition:color .15s}
+.stask-del:hover{color:var(--red)}
+.add-stask-row{display:flex;gap:6px;margin-top:8px}
+.add-stask-inp{flex:1;background:var(--s2);border:1px solid var(--b2);border-radius:7px;padding:7px 10px;font-family:var(--mono);font-size:12px;color:var(--txt);outline:none}
+.add-stask-inp:focus{border-color:var(--accent)}
+.add-stask-inp::placeholder{color:var(--dim)}
+.add-stask-btn{padding:7px 12px;border-radius:7px;background:var(--accent);border:none;color:#fff;font-size:12px;cursor:pointer;transition:background .15s;font-family:var(--sans);font-weight:600}
+.add-stask-btn:hover{background:var(--accent2)}
+.empty-proj-hint{color:var(--dim);font-size:12px;text-align:center;padding:6px 0;font-family:var(--mono)}
+
+/* ══════════════════════════════════════
+   MODALS
+══════════════════════════════════════ */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:200;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(5px)}
+.overlay.open{display:flex}
+.modal{background:var(--s1);border:1px solid var(--b2);border-radius:22px 22px 0 0;padding:22px;width:100%;max-width:480px;animation:su .22s ease;max-height:90dvh;overflow-y:auto}
+@keyframes su{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal h3{font-size:16px;font-weight:700;margin-bottom:5px}
+.modal-sub{font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.5}
+.modal label{font-family:var(--mono);font-size:10px;color:var(--muted);display:block;margin-bottom:4px;margin-top:10px}
+.modal input,.modal textarea,.modal select{width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:9px;padding:10px 12px;font-family:var(--mono);font-size:13px;color:var(--txt);outline:none;transition:border-color .2s}
+.modal input:focus,.modal textarea:focus,.modal select:focus{border-color:var(--accent)}
+.modal textarea{resize:vertical;min-height:70px;line-height:1.5}
+.modal select{appearance:none;cursor:pointer}
+.modal-btns{display:flex;gap:8px;margin-top:16px}
+.mbtn{flex:1;font-family:var(--sans);font-size:13px;font-weight:600;padding:11px;border-radius:11px;border:none;cursor:pointer;transition:all .15s}
+.mbtn.cancel{background:var(--s2);color:var(--muted);border:1px solid var(--b2)}
+.mbtn.save{background:var(--accent);color:#fff}
+.mbtn.save:hover{background:var(--accent2)}
+.mbtn.danger{background:rgba(248,113,113,.15);color:var(--red);border:1px solid rgba(248,113,113,.3)}
+.gcal-conn-btn{width:100%;padding:12px;border-radius:11px;border:1px solid rgba(52,211,153,.3);background:rgba(52,211,153,.07);color:var(--green);font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s;margin-top:6px}
+.gcal-conn-btn:hover{background:rgba(52,211,153,.14)}
+.gcal-info-box{margin-top:8px;padding:10px 13px;background:rgba(52,211,153,.07);border:1px solid rgba(52,211,153,.22);border-radius:10px;font-size:12px;color:var(--green);display:none}
+.gcal-disc-btn{width:100%;padding:9px;border-radius:10px;border:1px solid var(--b2);background:transparent;color:var(--muted);font-family:var(--sans);font-size:12px;cursor:pointer;margin-top:8px;display:none}
+.emoji-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin-top:4px}
+.emoji-opt{font-size:20px;padding:6px;border-radius:7px;cursor:pointer;text-align:center;border:1px solid transparent;transition:all .15s}
+.emoji-opt:hover{background:var(--s3);border-color:var(--b2)}
+.emoji-opt.selected{background:var(--s3);border-color:var(--accent)}
+
+/* STATUS + TOAST */
+.statusbar{padding:5px 16px 6px;display:flex;align-items:center;gap:6px;flex-shrink:0;border-top:1px solid var(--b1)}
+.sdot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.sdot.ok{background:var(--green)}.sdot.warn{background:var(--amber)}.sdot.err{background:var(--red)}
+.stext{font-family:var(--mono);font-size:10px;color:var(--muted);flex:1}
+.gcal-pill{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:20px;border:1px solid var(--b2);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
+.gcal-pill.on{border-color:rgba(52,211,153,.4);color:var(--green)}
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(16px);opacity:0;background:var(--s3);border:1px solid var(--b2);border-radius:22px;padding:8px 16px;font-size:12px;font-family:var(--mono);z-index:300;transition:all .22s;white-space:nowrap;pointer-events:none;max-width:90vw;text-align:center}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--dim);padding:40px;text-align:center;font-size:13px;line-height:1.6}
+.empty-icon{font-size:38px;opacity:.2}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ══ VOICE PAGE ══ -->
+<div class="page active" id="page-voice">
+  <div class="voice-mode-toggle">
+    <button class="vmt-btn active" id="btn-sphere" onclick="setVoiceMode('sphere')">🔮 Voz</button>
+    <button class="vmt-btn" id="btn-chat" onclick="setVoiceMode('chat')">💬 Chat</button>
+  </div>
+
+  <!-- SPHERE MODE -->
+  <div class="sphere-view" id="sphere-view">
+    <div class="sphere-transcript" id="sphere-transcript">Toca la esfera y habla…</div>
+    <div class="sphere-wrap">
+      <div class="sphere-rings" id="sphereRings"></div>
+      <div class="sphere" id="sphere" onclick="toggleMic()">
+        <div class="sphere-bars">
+          <div class="sbar"></div><div class="sbar"></div><div class="sbar"></div>
+          <div class="sbar"></div><div class="sbar"></div>
+        </div>
+      </div>
+    </div>
+    <div class="sphere-hint" id="sphereHint">toca para hablar</div>
+  </div>
+
+  <!-- CHAT MODE -->
+  <div class="chat-view hidden" id="chat-view">
+    <div class="msgs" id="msgs"></div>
+  </div>
+
+  <div class="input-bar">
+    <div class="input-wrap">
+      <textarea class="txt-in" id="txtIn" placeholder="Escribe o usa la esfera…" rows="1"
+        oninput="autoH(this)"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitText()}"></textarea>
+      <button class="send-btn" onclick="submitText()">↑</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CALENDAR PAGE ══ -->
+<div class="page" id="page-cal">
+  <div class="cal-header">
+    <button class="cal-nav-btn" onclick="changeMonth(-1)">‹</button>
+    <span class="cal-month-label" id="calMonth"></span>
+    <button class="cal-nav-btn" onclick="changeMonth(1)">›</button>
+    <button class="cal-add-btn" onclick="openModal('event')">+ Evento</button>
+  </div>
+  <div class="cal-grid">
+    <div class="cal-dow"><span>Lu</span><span>Ma</span><span>Mi</span><span>Ju</span><span>Vi</span><span>Sá</span><span>Do</span></div>
+    <div class="cal-days" id="calDays"></div>
+  </div>
+  <div class="cal-events-panel" id="calEvents"></div>
+</div>
+
+<!-- ══ TASKS PAGE ══ -->
+<div class="page" id="page-tasks">
+  <div class="tasks-header">
+    <span class="tasks-header-title">Tareas</span>
+    <div class="tasks-header-actions">
+      <button class="tasks-view-btn active" id="vbtn-list" onclick="setTaskView('list',this)">≡ Lista</button>
+      <button class="tasks-view-btn" id="vbtn-kanban" onclick="setTaskView('kanban',this)">⊞ Board</button>
+      <button class="tasks-view-btn" onclick="openModal('task')" style="border-color:rgba(124,106,255,.4);color:var(--accent2)">+ Nueva</button>
+    </div>
+  </div>
+  <div class="tasks-filters">
+    <button class="tf active" onclick="filterTasks('all',this)">Todas</button>
+    <button class="tf" onclick="filterTasks('hoy',this)">Hoy</button>
+    <button class="tf" onclick="filterTasks('pend',this)">Pendientes</button>
+    <button class="tf" onclick="filterTasks('alta',this)">🔴 Alta</button>
+    <button class="tf" onclick="filterTasks('done',this)">✓ Hechas</button>
+  </div>
+  <div class="tasks-list-view" id="tasksListView"></div>
+  <div class="kanban-view hidden" id="kanbanView"></div>
+</div>
+
+<!-- ══ PROJECTS PAGE ══ -->
+<div class="page" id="page-proj">
+  <div class="proj-header">
+    <span class="proj-header-title">Proyectos</span>
+    <button class="cal-add-btn" onclick="openModal('proj')">+ Nuevo</button>
+  </div>
+  <div class="proj-wrap" id="projList"></div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bnav">
+  <button class="bnav-btn active" onclick="gotoPage('voice',this)"><span class="bi">🎙</span><span class="bl">Vozi</span></button>
+  <button class="bnav-btn" onclick="gotoPage('cal',this)"><span class="bi">📅</span><span class="bl">Cal</span></button>
+  <button class="bnav-btn" onclick="gotoPage('tasks',this)"><span class="bi">✅</span><span class="bl">Tareas</span></button>
+  <button class="bnav-btn" onclick="gotoPage('proj',this)"><span class="bi">📁</span><span class="bl">Proyectos</span></button>
+</nav>
+
+<div class="statusbar">
+  <div class="sdot warn" id="sdot"></div>
+  <span class="stext" id="stext">Iniciando…</span>
+  <button class="gcal-pill" id="gcalPill" onclick="openModal('gcal')">Google Cal</button>
+</div>
+
+<!-- MODAL: NEW EVENT -->
+<div class="overlay" id="modal-event">
+  <div class="modal">
+    <h3>Nuevo evento</h3>
+    <div class="modal-sub">Se añadirá al calendario de VOZI y a Google Calendar si está conectado.</div>
+    <label>Título</label>
+    <input type="text" id="ev-title-in" placeholder="Reunión con cliente…" />
+    <label>Fecha</label>
+    <input type="date" id="ev-date-in" />
+    <label>Hora (opcional)</label>
+    <input type="time" id="ev-time-in" />
+    <label>Tipo</label>
+    <select id="ev-type-in">
+      <option value="recordatorio">Recordatorio</option>
+      <option value="tarea">Tarea</option>
+      <option value="evento">Evento</option>
+      <option value="reunion">Reunión</option>
+    </select>
+    <div class="modal-btns">
+      <button class="mbtn cancel" onclick="closeModal('event')">Cancelar</button>
+      <button class="mbtn save" onclick="saveEvent()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: EDIT EVENT -->
+<div class="overlay" id="modal-edit-event">
+  <div class="modal">
+    <h3>Editar evento</h3>
+    <label>Título</label>
+    <input type="text" id="edit-ev-title" />
+    <label>Fecha</label>
+    <input type="date" id="edit-ev-date" />
+    <label>Hora</label>
+    <input type="time" id="edit-ev-time" />
+    <input type="hidden" id="edit-ev-id" />
+    <div class="modal-btns">
+      <button class="mbtn cancel" onclick="closeModal('edit-event')">Cancelar</button>
+      <button class="mbtn danger" onclick="deleteEventById()">Eliminar</button>
+      <button class="mbtn save" onclick="updateEvent()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NEW TASK -->
+<div class="overlay" id="modal-task">
+  <div class="modal">
+    <h3>Nueva tarea</h3>
+    <label>Título</label>
+    <input type="text" id="task-title-in" placeholder="¿Qué tienes que hacer?" />
+    <label>Fecha límite (opcional)</label>
+    <input type="date" id="task-date-in" />
+    <label>Hora (opcional)</label>
+    <input type="time" id="task-time-in" />
+    <label>Prioridad</label>
+    <select id="task-pri-in">
+      <option value="media">Media</option>
+      <option value="alta">Alta</option>
+      <option value="baja">Baja</option>
+    </select>
+    <label>Proyecto (opcional)</label>
+    <select id="task-proj-in"><option value="">Sin proyecto</option></select>
+    <div class="modal-btns">
+      <button class="mbtn cancel" onclick="closeModal('task')">Cancelar</button>
+      <button class="mbtn save" onclick="saveNewTask()">Crear tarea</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NEW PROJECT -->
+<div class="overlay" id="modal-proj">
+  <div class="modal">
+    <h3>Nuevo proyecto</h3>
+    <label>Ícono</label>
+    <div class="emoji-grid" id="emojiGrid"></div>
+    <input type="hidden" id="proj-emoji-in" value="📁" />
+    <label>Nombre</label>
+    <input type="text" id="proj-name-in" placeholder="Nombre del proyecto" />
+    <label>Descripción</label>
+    <textarea id="proj-desc-in" placeholder="¿De qué trata este proyecto?"></textarea>
+    <label>Subtareas iniciales (una por línea)</label>
+    <textarea id="proj-stasks-in" placeholder="Fase de investigación&#10;Diseño de mockups&#10;Desarrollo"></textarea>
+    <div class="modal-btns">
+      <button class="mbtn cancel" onclick="closeModal('proj')">Cancelar</button>
+      <button class="mbtn save" onclick="saveNewProj()">Crear proyecto</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: GOOGLE CALENDAR -->
+<div class="overlay" id="modal-gcal">
+  <div class="modal">
+    <h3>Google Calendar</h3>
+    <div class="modal-sub">Conecta tu cuenta Google para sincronizar eventos automáticamente.</div>
+    <button class="gcal-conn-btn" id="gcalConnBtn" onclick="connectGoogle()">🗓 Conectar con Google</button>
+    <div class="gcal-info-box" id="gcalInfoBox">✓ Conectado como <span id="gcalEmailSpan"></span></div>
+    <button class="gcal-disc-btn" id="gcalDiscBtn" onclick="disconnectGoogle()">Desconectar Google</button>
+    <div class="modal-btns" style="margin-top:16px">
+      <button class="mbtn cancel" onclick="closeModal('gcal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════
+   CONFIG
+═══════════════════════════════════ */
+const OR_KEY   = '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';
+const OR_MODEL = 'openai/gpt-4o-mini';
+const GCAL_CLIENT_ID = '321324560202-7rmaa2b3sdoqgo77q4vjg9kgheclpu3r.apps.googleusercontent.com';
+const GCAL_SCOPE = 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/userinfo.email';
+const EMOJIS = ['📁','🚀','💡','🎯','📊','🛠','📱','✍️','🎨','💼','🏆','⚡','🔥','🌟','📝','🎵'];
+const PROJ_COLORS = ['#7c6aff','#34d399','#fbbf24','#f87171','#60a5fa','#f472b6'];
+
+/* ═══════════════════════════════════
+   STATE
+═══════════════════════════════════ */
+let DB = {tasks:[],projects:[],events:[],reminders:[]};
+let gcalToken = localStorage.getItem('vozi_gcal_token')||'';
+let gcalEmail = localStorage.getItem('vozi_gcal_email')||'';
+let isListening=false, recognition=null, currentLive='';
+let calDate=new Date(), selectedDate=new Date().toISOString().split('T')[0];
+let taskFilter='all', taskView='list', tokenClient=null;
+let voiceMode='sphere';
+let selectedEmoji='📁';
+
+function loadDB(){ try{ const d=localStorage.getItem('vozi_db3'); if(d) DB=JSON.parse(d); }catch(e){} }
+function saveDB(){ localStorage.setItem('vozi_db3',JSON.stringify(DB)); }
+
+/* ═══════════════════════════════════
+   AI — OpenRouter
+═══════════════════════════════════ */
+async function askAI(userText){
+  const today=new Date().toISOString().split('T')[0];
+  const day=new Date().toLocaleDateString('es-ES',{weekday:'long'});
+  const projs=DB.projects.map(p=>p.name).join(', ')||'ninguno';
+  const gcal=gcalToken?'conectado':'no conectado';
+
+  const sys=`Eres VOZI, asistente personal. Responde SOLO con JSON válido sin markdown.`;
+  const prompt=`HOY: ${today} (${day}). Proyectos: ${projs}. Google Calendar: ${gcal}.
+
+Analiza y devuelve JSON:
+{"intent":"crear_tarea"|"crear_recordatorio"|"crear_proyecto"|"consulta"|"motivacion"|"otro","title":"string","date":"YYYY-MM-DD|null","time":"HH:MM|null","priority":"alta"|"media"|"baja","project":"string|null","subtasks":[],"add_to_gcal":true/false,"response":"string max 2 frases"}
+
+Fechas: mañana=${new Date(Date.now()+86400000).toISOString().split('T')[0]}, pasado=${new Date(Date.now()+172800000).toISOString().split('T')[0]}. Calcula próximos días de semana exactamente.
+add_to_gcal=true solo si fecha/hora Y gcal conectado.
+
+Mensaje: "${userText}"`;
+
+  const r=await fetch('https://openrouter.ai/api/v1/chat/completions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+OR_KEY,'HTTP-Referer':location.origin,'X-Title':'VOZI'},
+    body:JSON.stringify({model:OR_MODEL,messages:[{role:'system',content:sys},{role:'user',content:prompt}],temperature:0.2,max_tokens:400})
+  });
+  if(!r.ok) throw new Error('Error '+r.status);
+  const d=await r.json();
+  let raw=d.choices?.[0]?.message?.content||'{}';
+  return JSON.parse(raw.replace(/```json|```/g,'').trim());
+}
+
+/* ═══════════════════════════════════
+   VOICE — Sphere
+═══════════════════════════════════ */
+const SRec=window.SpeechRecognition||window.webkitSpeechRecognition;
+
+function setVoiceMode(mode){
+  voiceMode=mode;
+  document.getElementById('sphere-view').classList.toggle('hidden',mode==='chat');
+  document.getElementById('chat-view').classList.toggle('hidden',mode==='sphere');
+  document.getElementById('btn-sphere').classList.toggle('active',mode==='sphere');
+  document.getElementById('btn-chat').classList.toggle('active',mode==='chat');
+}
+
+function toggleMic(){
+  if(!SRec){ toast('Usa Chrome para voz'); return; }
+  if(isListening){ stopMic(); return; }
+  navigator.mediaDevices.getUserMedia({audio:true})
+    .then(s=>{ s.getTracks().forEach(t=>t.stop()); startMic(); })
+    .catch(()=>toast('Permiso de micrófono denegado'));
+}
+
+function startMic(){
+  recognition=new SRec(); recognition.lang='es-ES'; recognition.continuous=true; recognition.interimResults=true;
+  currentLive='';
+  recognition.onresult=e=>{
+    let fin='',int='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const t=e.results[i][0].transcript;
+      e.results[i].isFinal?(fin+=t):(int+=t);
+    }
+    if(fin) currentLive+=fin;
+    const txt=currentLive+(int?' '+int:'');
+    const el=document.getElementById('sphere-transcript');
+    el.textContent=txt; el.classList.add('has-text');
+  };
+  recognition.onerror=e=>{ if(e.error!=='no-speech') stopMic(); };
+  recognition.onend=()=>{ if(isListening) recognition.start(); };
+  recognition.start(); isListening=true;
+  document.getElementById('sphere').classList.add('listening');
+  document.getElementById('sphereRings').classList.add('listening');
+  document.getElementById('sphereHint').textContent='escuchando… toca para enviar';
+  setStatus('Escuchando…','ok');
+}
+
+function stopMic(){
+  isListening=false; recognition?.stop();
+  document.getElementById('sphere').classList.remove('listening');
+  document.getElementById('sphereRings').classList.remove('listening');
+  document.getElementById('sphereHint').textContent='toca para hablar';
+  if(currentLive.trim()){
+    const txt=currentLive.trim();
+    currentLive='';
+    document.getElementById('sphere-transcript').textContent='Procesando…';
+    processInput(txt);
+  } else {
+    document.getElementById('sphere-transcript').textContent='Toca la esfera y habla…';
+    document.getElementById('sphere-transcript').classList.remove('has-text');
+  }
+}
+
+/* ═══════════════════════════════════
+   TEXT INPUT
+═══════════════════════════════════ */
+function submitText(){
+  const el=document.getElementById('txtIn'); const t=el.value.trim(); if(!t) return;
+  el.value=''; el.style.height='auto'; processInput(t);
+}
+function autoH(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,90)+'px'; }
+
+/* ═══════════════════════════════════
+   PROCESS INPUT
+═══════════════════════════════════ */
+function addMsg(role,html){
+  setVoiceMode('chat');
+  const el=document.createElement('div'); el.className='msg '+role;
+  if(role==='ai') el.innerHTML='<div class="msg-label">✦ VOZI</div>'+html;
+  else el.textContent=html;
+  document.getElementById('msgs').appendChild(el);
+  document.getElementById('msgs').scrollTop=9999; return el;
+}
+function addSys(t){ const el=document.createElement('div'); el.className='msg sys'; el.textContent=t; document.getElementById('msgs').appendChild(el); document.getElementById('msgs').scrollTop=9999; }
+
+async function processInput(text){
+  addMsg('user',text);
+  const thinking=addMsg('ai','<div class="think"><div class="td"></div><div class="td"></div><div class="td"></div></div>');
+  setStatus('Procesando…','ok');
+  try{
+    const p=await askAI(text);
+    thinking.innerHTML='<div class="msg-label">✦ VOZI</div>'+escH(p.response||'Entendido.');
+    await handleIntent(p,text,thinking);
+    speak(p.response||'');
+    updateStatus();
+    // Reset sphere
+    const st=document.getElementById('sphere-transcript');
+    st.textContent='Toca la esfera y habla…'; st.classList.remove('has-text');
+  }catch(err){
+    thinking.innerHTML='<div class="msg-label">✦ VOZI</div>Error IA: '+escH(err.message.substring(0,60));
+    setStatus('Error IA','err');
+  }
+}
+
+async function handleIntent(p,raw,bubble){
+  if(p.intent==='crear_tarea'||p.intent==='crear_recordatorio'){
+    const task={id:Date.now(),title:p.title||raw,date:p.date||null,time:p.time||null,
+      priority:p.priority||'media',project:p.project||null,status:'pendiente',
+      created:new Date().toISOString(),gcalId:null};
+    if(p.subtasks?.length) task.subtasks=p.subtasks.map((s,i)=>({id:task.id+'_'+i,text:s,done:false}));
+    DB.tasks.unshift(task);
+    let gcalOk=false;
+    if(gcalToken&&p.add_to_gcal&&task.date){ const gid=await createGCalEvent(task); if(gid){task.gcalId=gid;gcalOk=true;} }
+    saveDB(); renderTasks(); renderCal();
+    if(p.project) linkToProject(task,p.project);
+    scheduleReminder(task);
+    const row=document.createElement('div'); row.className='chips';
+    if(task.date){ const c=document.createElement('span'); c.className='chip'; c.textContent='📅 '+fmtDate(task.date)+(task.time?' '+task.time:''); row.appendChild(c); }
+    if(gcalOk){ const c=document.createElement('span'); c.className='chip g'; c.textContent='✓ Google Cal'; row.appendChild(c); }
+    else if(task.date&&!gcalToken){ const c=document.createElement('span'); c.className='chip w'; c.textContent='⚡ Conecta Google Cal'; c.onclick=()=>openModal('gcal'); row.appendChild(c); }
+    bubble.appendChild(row);
+  } else if(p.intent==='crear_proyecto'){
+    createProject(p.title||raw,'📁',p.title||raw,'',p.subtasks||[]);
+  } else if(p.intent==='consulta'){
+    const today=new Date().toISOString().split('T')[0];
+    const pend=DB.tasks.filter(t=>t.status==='pendiente');
+    const hoy=pend.filter(t=>t.date===today);
+    let extra=hoy.length?'<br><br>📋 Hoy: '+hoy.map(t=>'• '+escH(t.title)).join('<br>'):pend.length?'<br><br>'+pend.length+' tareas pendientes.':'<br><br>¡Todo al día! 🎉';
+    bubble.innerHTML+=extra;
+  }
+}
+
+function linkToProject(task,name){
+  const p=DB.projects.find(x=>x.name.toLowerCase()===name.toLowerCase());
+  if(p){ task.project=p.name; if(!p.subtasks) p.subtasks=[]; p.subtasks.push({id:'st_'+task.id,text:task.title,done:false}); saveDB(); renderProjects(); }
+}
+
+/* ═══════════════════════════════════
+   TTS
+═══════════════════════════════════ */
+function speak(text){
+  if(!text||!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text); u.lang='es-ES'; u.rate=1.05;
+  const vs=window.speechSynthesis.getVoices();
+  const v=vs.find(v=>v.lang==='es-ES')||vs.find(v=>v.lang.startsWith('es'));
+  if(v) u.voice=v;
+  window.speechSynthesis.speak(u);
+}
+
+/* ═══════════════════════════════════
+   REMINDERS
+═══════════════════════════════════ */
+function scheduleReminder(task){
+  if(!task.date||!task.time) return;
+  const at=new Date(task.date+'T'+task.time+':00').getTime()-10*60*1000;
+  if(at>Date.now()) DB.reminders.push({id:'r_'+task.id,title:task.title,triggerAt:at,fired:false});
+  saveDB();
+}
+function checkReminders(){
+  const now=Date.now(); let ch=false;
+  DB.reminders.forEach(r=>{ if(!r.fired&&now>=r.triggerAt){ r.fired=true; ch=true;
+    if(Notification.permission==='granted') new Notification('⏰ VOZI',{body:'En 10 min: '+r.title});
+    addSys('🔔 En 10 min: '+r.title); speak('Recuerda: '+r.title); toast('⏰ '+r.title);
+  }});
+  if(ch) saveDB();
+}
+
+/* ═══════════════════════════════════
+   GOOGLE CALENDAR
+═══════════════════════════════════ */
+function initGoogleAuth(){
+  if(!window.google){ setTimeout(initGoogleAuth,700); return; }
+  tokenClient=google.accounts.oauth2.initTokenClient({client_id:GCAL_CLIENT_ID,scope:GCAL_SCOPE,callback:handleGoogleToken});
+  if(gcalToken) updateGCalUI(true);
+}
+function connectGoogle(){ if(!window.google){toast('Cargando…');return;} tokenClient.requestAccessToken(); }
+async function handleGoogleToken(resp){
+  if(resp.error){toast('Error: '+resp.error);return;}
+  gcalToken=resp.access_token; localStorage.setItem('vozi_gcal_token',gcalToken);
+  try{ const r=await fetch('https://www.googleapis.com/oauth2/v2/userinfo',{headers:{Authorization:'Bearer '+gcalToken}}); const u=await r.json(); gcalEmail=u.email||''; localStorage.setItem('vozi_gcal_email',gcalEmail); }catch(e){}
+  updateGCalUI(true); closeModal('gcal');
+  addSys('📅 Google Calendar conectado — '+gcalEmail);
+  toast('✓ Google Calendar vinculado'); updateStatus(); loadGCalEvents();
+}
+function disconnectGoogle(){
+  if(gcalToken&&window.google) google.accounts.oauth2.revoke(gcalToken);
+  gcalToken=''; gcalEmail='';
+  localStorage.removeItem('vozi_gcal_token'); localStorage.removeItem('vozi_gcal_email');
+  updateGCalUI(false); updateStatus(); toast('Desconectado');
+}
+function updateGCalUI(on){
+  document.getElementById('gcalPill').classList.toggle('on',on);
+  document.getElementById('gcalPill').textContent=on?'📅 ✓':'Google Cal';
+  document.getElementById('gcalConnBtn').style.display=on?'none':'flex';
+  document.getElementById('gcalInfoBox').style.display=on?'block':'none';
+  document.getElementById('gcalDiscBtn').style.display=on?'block':'none';
+  if(on) document.getElementById('gcalEmailSpan').textContent=gcalEmail;
+}
+async function createGCalEvent(task){
+  if(!gcalToken||!task.date) return null;
+  const s=task.date+'T'+(task.time||'09:00')+':00';
+  const e=task.date+'T'+(task.time?addHour(task.time):'10:00')+':00';
+  try{
+    const r=await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events',{
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+gcalToken},
+      body:JSON.stringify({summary:task.title,description:'Creado por VOZI',start:{dateTime:s,timeZone:'Europe/Madrid'},end:{dateTime:e,timeZone:'Europe/Madrid'},reminders:{useDefault:false,overrides:[{method:'popup',minutes:10}]}})
+    });
+    if(r.status===401){gcalToken='';localStorage.removeItem('vozi_gcal_token');updateGCalUI(false);return null;}
+    const d=await r.json(); return d.id||null;
+  }catch(e){return null;}
+}
+async function loadGCalEvents(){
+  if(!gcalToken) return; setStatus('Sincronizando…','ok');
+  const now=new Date(), max=new Date(now.getFullYear(),now.getMonth()+3,1).toISOString();
+  try{
+    const r=await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now.toISOString()}&timeMax=${max}&singleEvents=true&orderBy=startTime&maxResults=100`,{headers:{Authorization:'Bearer '+gcalToken}});
+    if(r.status===401){gcalToken='';localStorage.removeItem('vozi_gcal_token');updateGCalUI(false);return;}
+    const d=await r.json(); if(!d.items){updateStatus();return;}
+    DB.events=DB.events.filter(e=>e.type!=='gcal');
+    d.items.forEach(ev=>{
+      const date=(ev.start.date||(ev.start.dateTime||'').split('T')[0]);
+      const time=ev.start.dateTime?ev.start.dateTime.split('T')[1].substring(0,5):null;
+      DB.events.push({id:'gc_'+ev.id,gcalId:ev.id,title:ev.summary||'Sin título',date,time,type:'gcal',done:false});
+    });
+    saveDB(); renderCal(); toast('📅 '+d.items.length+' eventos sincronizados'); updateStatus();
+  }catch(e){setStatus('Error sync','err');}
+}
+function addHour(t){ const[h,m]=t.split(':').map(Number); return String((h+1)%24).padStart(2,'0')+':'+String(m).padStart(2,'0'); }
+
+/* ═══════════════════════════════════
+   CALENDAR
+═══════════════════════════════════ */
+function renderCal(){
+  const y=calDate.getFullYear(),m=calDate.getMonth();
+  document.getElementById('calMonth').textContent=calDate.toLocaleDateString('es-ES',{month:'long',year:'numeric'});
+  const first=new Date(y,m,1); let dow=first.getDay()-1; if(dow<0)dow=6;
+  const days=new Date(y,m+1,0).getDate();
+  const today=new Date().toISOString().split('T')[0];
+  // Build date→events map
+  const evMap={};
+  [...DB.events,...DB.tasks.filter(t=>t.date)].forEach(e=>{
+    const d=e.date||''; if(!evMap[d]) evMap[d]=[];
+    evMap[d].push({type:e.type||'tarea',gcal:!!e.gcalId||e.type==='gcal'});
+  });
+  let html='';
+  for(let i=0;i<dow;i++){ const d=new Date(y,m,1-dow+i); html+=`<div class="cal-day other">${d.getDate()}</div>`; }
+  for(let d=1;d<=days;d++){
+    const iso=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const cls=['cal-day',iso===today?'today':'',iso===selectedDate?'selected':''].filter(Boolean).join(' ');
+    const evs=evMap[iso]||[];
+    const dots=evs.slice(0,3).map(e=>`<div class="cal-dot" style="background:${e.gcal?'var(--green)':e.type==='recordatorio'?'var(--amber)':'var(--accent)'}"></div>`).join('');
+    html+=`<div class="${cls}" onclick="selectDay('${iso}')">${d}<div class="cal-day-dots">${dots}</div></div>`;
+  }
+  document.getElementById('calDays').innerHTML=html;
+  renderDayEvents(selectedDate);
+}
+function selectDay(iso){ selectedDate=iso; renderCal(); }
+function changeMonth(d){ calDate.setMonth(calDate.getMonth()+d); renderCal(); }
+function renderDayEvents(iso){
+  const el=document.getElementById('calEvents');
+  const label=new Date(iso+'T12:00').toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
+  const evs=[
+    ...DB.events.filter(e=>e.date===iso),
+    ...DB.tasks.filter(t=>t.date===iso).map(t=>({id:'t_'+t.id,title:t.title,time:t.time,type:t.gcalId?'gcal':'tarea',taskId:t.id,isTask:true}))
+  ].sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+  if(!evs.length){ el.innerHTML=`<div class="cal-day-label">${label}</div><div class="no-ev">Sin eventos — pulsa "+ Evento" para añadir</div>`; return; }
+  el.innerHTML=`<div class="cal-day-label">${label}</div>`+evs.map(e=>{
+    const color=e.type==='gcal'?'var(--green)':e.type==='recordatorio'?'var(--amber)':e.type==='reunion'?'var(--pink)':'var(--accent)';
+    return `<div class="ev-card" onclick="openEditEvent('${e.id}','${escH(e.title)}','${iso}','${e.time||''}')">
+      <div class="ev-color" style="background:${color}"></div>
+      <div class="ev-body">
+        <div class="ev-title">${escH(e.title)}</div>
+        <div class="ev-meta">
+          <span class="ev-time">${e.time||'Todo el día'} · ${e.type}</span>
+          ${e.type==='gcal'?'<span class="ev-src-badge">Google</span>':''}
+        </div>
+      </div>
+      <button class="ev-del" onclick="event.stopPropagation();deleteEventById('${e.id}')" title="Eliminar">✕</button>
+    </div>`;
+  }).join('');
+}
+function saveEvent(){
+  const title=document.getElementById('ev-title-in').value.trim();
+  const date=document.getElementById('ev-date-in').value;
+  const time=document.getElementById('ev-time-in').value;
+  const type=document.getElementById('ev-type-in').value;
+  if(!title||!date){toast('Título y fecha obligatorios');return;}
+  const ev={id:'ev_'+Date.now(),title,date,time:time||null,type,done:false};
+  DB.events.push(ev); saveDB(); renderCal(); closeModal('event');
+  toast('✓ Evento creado');
+  // Also create in gcal
+  if(gcalToken&&time) createGCalEvent({title,date,time,project:null});
+  document.getElementById('ev-title-in').value='';
+  document.getElementById('ev-date-in').value='';
+  document.getElementById('ev-time-in').value='';
+}
+function openEditEvent(id,title,date,time){
+  document.getElementById('edit-ev-id').value=id;
+  document.getElementById('edit-ev-title').value=title;
+  document.getElementById('edit-ev-date').value=date;
+  document.getElementById('edit-ev-time').value=time;
+  openModal('edit-event');
+}
+function updateEvent(){
+  const id=document.getElementById('edit-ev-id').value;
+  const ev=DB.events.find(e=>e.id===id);
+  if(ev){
+    ev.title=document.getElementById('edit-ev-title').value;
+    ev.date=document.getElementById('edit-ev-date').value;
+    ev.time=document.getElementById('edit-ev-time').value||null;
+  } else {
+    const t=DB.tasks.find(t=>'t_'+t.id===id);
+    if(t){ t.title=document.getElementById('edit-ev-title').value; t.date=document.getElementById('edit-ev-date').value; t.time=document.getElementById('edit-ev-time').value||null; }
+  }
+  saveDB(); renderCal(); closeModal('edit-event'); toast('✓ Evento actualizado');
+}
+function deleteEventById(id){
+  if(!id) id=document.getElementById('edit-ev-id').value;
+  DB.events=DB.events.filter(e=>e.id!==id);
+  const taskId=id.replace('t_','');
+  DB.tasks=DB.tasks.filter(t=>String(t.id)!==taskId);
+  saveDB(); renderCal(); closeModal('edit-event'); toast('Evento eliminado');
+}
+
+/* ═══════════════════════════════════
+   TASKS
+═══════════════════════════════════ */
+function populateTaskProjSelect(){
+  const sel=document.getElementById('task-proj-in');
+  sel.innerHTML='<option value="">Sin proyecto</option>'+DB.projects.map(p=>`<option value="${escH(p.name)}">${escH(p.name)}</option>`).join('');
+}
+function saveNewTask(){
+  const title=document.getElementById('task-title-in').value.trim(); if(!title){toast('Escribe un título');return;}
+  const task={id:Date.now(),title,date:document.getElementById('task-date-in').value||null,time:document.getElementById('task-time-in').value||null,
+    priority:document.getElementById('task-pri-in').value,project:document.getElementById('task-proj-in').value||null,
+    status:'pendiente',created:new Date().toISOString(),gcalId:null};
+  DB.tasks.unshift(task); saveDB(); renderTasks(); renderCal(); closeModal('task');
+  if(task.date&&gcalToken) createGCalEvent(task).then(id=>{if(id){task.gcalId=id;saveDB();}});
+  scheduleReminder(task);
+  document.getElementById('task-title-in').value='';
+  toast('✓ Tarea creada');
+}
+function setTaskView(v,btn){
+  taskView=v;
+  document.querySelectorAll('.tasks-view-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
+  document.getElementById('tasksListView').classList.toggle('hidden',v==='kanban');
+  document.getElementById('kanbanView').classList.toggle('hidden',v==='list');
+  if(v==='kanban') renderKanban(); else renderTasks();
+}
+function filterTasks(f,btn){ taskFilter=f; document.querySelectorAll('.tf').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); renderTasks(); if(taskView==='kanban') renderKanban(); }
+function renderTasks(){
+  const el=document.getElementById('tasksListView');
+  const today=new Date().toISOString().split('T')[0];
+  let tasks=[...DB.tasks];
+  if(taskFilter==='hoy') tasks=tasks.filter(t=>t.date===today);
+  else if(taskFilter==='pend') tasks=tasks.filter(t=>t.status==='pendiente');
+  else if(taskFilter==='alta') tasks=tasks.filter(t=>t.priority==='alta');
+  else if(taskFilter==='done') tasks=tasks.filter(t=>t.status==='completada');
+  if(!tasks.length){ el.innerHTML='<div class="empty"><div class="empty-icon">✅</div>'+(taskFilter==='all'?'Sin tareas — usa la voz o "+ Nueva"':'Sin tareas aquí')+'</div>'; return; }
+  el.innerHTML=tasks.map(t=>{
+    const ov=t.date&&t.date<today&&t.status==='pendiente', isT=t.date===today&&t.status==='pendiente';
+    return `<div class="task-row ${ov?'tl-overdue':isT?'tl-today':''}">
+      <div class="task-cb ${t.status==='completada'?'done':''}" onclick="toggleTask(${t.id})">${t.status==='completada'?'✓':''}</div>
+      <div class="task-body">
+        <div class="task-title-text ${t.status==='completada'?'done':''}">${escH(t.title)}</div>
+        <div class="task-meta-row">
+          <span class="tbadge pri-${t.priority}">${t.priority}</span>
+          ${t.date?`<span class="date-b">📅 ${fmtDate(t.date)}${t.time?' '+t.time:''}</span>`:''}
+          ${t.project?`<span class="proj-b">${escH(t.project)}</span>`:''}
+          ${t.gcalId?'<span class="gcal-b">Google</span>':''}
+          ${ov?'<span class="overdue-b">vencida</span>':''}
+        </div>
+      </div>
+      <button class="task-del" onclick="deleteTask(${t.id})">✕</button>
+    </div>`;
+  }).join('');
+}
+function renderKanban(){
+  const el=document.getElementById('kanbanView');
+  const cols=[
+    {id:'pendiente',label:'Por hacer',color:'var(--amber)'},
+    {id:'en-progreso',label:'En progreso',color:'var(--blue)'},
+    {id:'completada',label:'Hecho',color:'var(--green)'}
+  ];
+  el.innerHTML=cols.map(col=>{
+    let tasks=DB.tasks.filter(t=>(col.id==='pendiente'?t.status==='pendiente':col.id==='completada'?t.status==='completada':t.status==='en-progreso'));
+    if(taskFilter==='alta') tasks=tasks.filter(t=>t.priority==='alta');
+    const today=new Date().toISOString().split('T')[0];
+    return `<div class="k-col">
+      <div class="k-col-hdr">
+        <div class="k-col-dot" style="background:${col.color}"></div>
+        <span class="k-col-title">${col.label}</span>
+        <span class="k-col-count">${tasks.length}</span>
+      </div>
+      <div class="k-cards">
+        ${tasks.map(t=>`<div class="k-card" onclick="cycleTaskStatus(${t.id})">
+          <div class="k-card-title ${t.status==='completada'?'done':''}">${escH(t.title)}</div>
+          <div class="k-card-bottom">
+            <span class="tbadge pri-${t.priority}">${t.priority}</span>
+            ${t.date?`<span class="date-b">📅 ${fmtDate(t.date)}</span>`:''}
+            ${t.project?`<span class="proj-b">${escH(t.project)}</span>`:''}
+          </div>
+        </div>`).join('')}
+        <button class="k-add" onclick="openModal('task')">+ Añadir tarea</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function toggleTask(id){
+  const t=DB.tasks.find(x=>x.id===id); if(!t) return;
+  t.status=t.status==='completada'?'pendiente':'completada';
+  saveDB(); renderTasks(); if(taskView==='kanban') renderKanban(); renderProjects();
+  if(t.status==='completada') toast('✓ '+t.title.substring(0,30));
+}
+function cycleTaskStatus(id){
+  const t=DB.tasks.find(x=>x.id===id); if(!t) return;
+  const cycle={pendiente:'en-progreso','en-progreso':'completada',completada:'pendiente'};
+  t.status=cycle[t.status]||'pendiente';
+  saveDB(); renderKanban(); renderProjects(); toast('→ '+t.status);
+}
+function deleteTask(id){ DB.tasks=DB.tasks.filter(t=>t.id!==id); saveDB(); renderTasks(); renderCal(); }
+
+/* ═══════════════════════════════════
+   PROJECTS
+═══════════════════════════════════ */
+function createProject(id,emoji,name,desc,subtasks){
+  const i=DB.projects.length%PROJ_COLORS.length;
+  DB.projects.unshift({id:id||Date.now(),emoji:emoji||'📁',name:name.trim(),desc:desc||'',
+    color:PROJ_COLORS[i],subtasks:(subtasks||[]).map((s,j)=>({id:Date.now()+'_'+j,text:typeof s==='string'?s:s.text,done:false})),
+    created:new Date().toISOString()});
+  saveDB(); renderProjects(); toast('📁 "'+name+'" creado');
+}
+function renderProjects(){
+  const el=document.getElementById('projList');
+  if(!DB.projects.length){ el.innerHTML='<div class="empty"><div class="empty-icon">📁</div>Sin proyectos aún.<br>Pulsa "+ Nuevo" o dile a VOZI que cree uno.</div>'; return; }
+  el.innerHTML=DB.projects.map(p=>{
+    const tot=(p.subtasks||[]).length, don=(p.subtasks||[]).filter(s=>s.done).length;
+    const pct=tot?Math.round(don/tot*100):0;
+    const pend=DB.tasks.filter(t=>t.project===p.name&&t.status==='pendiente').length;
+    return `<div class="proj-card" id="pj_${p.id}">
+      <div class="proj-card-hdr" onclick="toggleProj(${p.id})">
+        <div class="proj-top-row">
+          <div class="proj-emoji" style="background:${p.color}20">${p.emoji||'📁'}</div>
+          <div class="proj-info">
+            <div class="proj-name-el">${escH(p.name)}</div>
+            <div class="proj-desc-el">${escH(p.desc||'Sin descripción')}</div>
+          </div>
+          <button onclick="event.stopPropagation();deleteProj(${p.id})" style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:13px;padding:0 4px">✕</button>
+        </div>
+        <div class="proj-prog-row">
+          <div class="pbar"><div class="pbar-fill" style="width:${pct}%"></div></div>
+          <span class="pbar-pct">${pct}%</span>
+        </div>
+        <div class="proj-stats-row">
+          <span class="pstat ok">✓ ${don} hechas</span>
+          <span class="pstat pend">⏳ ${pend} pendientes</span>
+          ${tot?`<span class="pstat">${tot} subtareas</span>`:''}
+        </div>
+      </div>
+      <div class="proj-subtasks" id="ps_${p.id}">
+        ${(p.subtasks||[]).length?
+          (p.subtasks||[]).map(s=>`<div class="stask-item">
+            <div class="stask-cb ${s.done?'done':''}" onclick="toggleSub('${p.id}','${s.id}')">${s.done?'✓':''}</div>
+            <span class="stask-text ${s.done?'done':''}">${escH(s.text)}</span>
+            <button class="stask-del" onclick="deleteStask('${p.id}','${s.id}')">✕</button>
+          </div>`).join('')
+          :'<div class="empty-proj-hint">Sin subtareas todavía</div>'
+        }
+        <div class="add-stask-row">
+          <input class="add-stask-inp" id="si_${p.id}" placeholder="Nueva subtarea…" onkeydown="if(event.key==='Enter') addStask('${p.id}')" />
+          <button class="add-stask-btn" onclick="addStask('${p.id}')">+ Añadir</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function toggleProj(id){
+  const card=document.getElementById('pj_'+id); if(!card) return;
+  card.classList.toggle('open');
+}
+function toggleSub(pid,sid){
+  const p=DB.projects.find(x=>String(x.id)===String(pid)); if(!p) return;
+  const s=p.subtasks.find(x=>String(x.id)===String(sid)); if(s){s.done=!s.done; saveDB(); renderProjects();}
+}
+function addStask(pid){
+  const inp=document.getElementById('si_'+pid); if(!inp) return;
+  const text=inp.value.trim(); if(!text) return;
+  const p=DB.projects.find(x=>String(x.id)===String(pid)); if(!p) return;
+  if(!p.subtasks) p.subtasks=[];
+  p.subtasks.push({id:Date.now()+'_s',text,done:false});
+  saveDB(); renderProjects();
+}
+function deleteStask(pid,sid){
+  const p=DB.projects.find(x=>String(x.id)===String(pid)); if(!p) return;
+  p.subtasks=p.subtasks.filter(s=>String(s.id)!==String(sid));
+  saveDB(); renderProjects();
+}
+function deleteProj(id){ DB.projects=DB.projects.filter(p=>p.id!==id); saveDB(); renderProjects(); toast('Proyecto eliminado'); }
+function saveNewProj(){
+  const name=document.getElementById('proj-name-in').value.trim(); if(!name){toast('Escribe un nombre');return;}
+  const desc=document.getElementById('proj-desc-in').value;
+  const stLines=document.getElementById('proj-stasks-in').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  createProject(Date.now(),selectedEmoji,name,desc,stLines);
+  document.getElementById('proj-name-in').value='';
+  document.getElementById('proj-desc-in').value='';
+  document.getElementById('proj-stasks-in').value='';
+  closeModal('proj');
+}
+function buildEmojiGrid(){
+  document.getElementById('emojiGrid').innerHTML=EMOJIS.map(e=>`<div class="emoji-opt ${e===selectedEmoji?'selected':''}" onclick="selectProjEmoji('${e}')">${e}</div>`).join('');
+}
+function selectProjEmoji(e){
+  selectedEmoji=e;
+  document.getElementById('proj-emoji-in').value=e;
+  document.querySelectorAll('.emoji-opt').forEach(el=>el.classList.toggle('selected',el.textContent===e));
+}
+
+/* ═══════════════════════════════════
+   NAVIGATION + MODALS
+═══════════════════════════════════ */
+function gotoPage(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.bnav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(id==='cal') renderCal();
+  if(id==='proj') renderProjects();
+  if(id==='tasks'){ renderTasks(); populateTaskProjSelect(); }
+}
+function openModal(id){
+  document.getElementById('modal-'+id).classList.add('open');
+  if(id==='proj') buildEmojiGrid();
+  if(id==='task') populateTaskProjSelect();
+  if(id==='event') document.getElementById('ev-date-in').value=selectedDate;
+}
+function closeModal(id){ document.getElementById('modal-'+id).classList.remove('open'); }
+
+/* ═══════════════════════════════════
+   UTILS
+═══════════════════════════════════ */
+function updateStatus(){
+  const ok=gcalToken;
+  setStatus(ok?'IA activa + Google Calendar':'IA activa',ok?'ok':'warn');
+}
+function setStatus(msg,type){ document.getElementById('stext').textContent=msg; document.getElementById('sdot').className='sdot '+(type||'ok'); }
+function escH(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtDate(iso){ if(!iso) return ''; return new Date(iso+'T12:00').toLocaleDateString('es-ES',{day:'numeric',month:'short'}); }
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
+
+/* ═══════════════════════════════════
+   INIT
+═══════════════════════════════════ */
+loadDB(); renderTasks(); renderProjects();
+if('Notification' in window && Notification.permission==='default') Notification.requestPermission();
+setInterval(checkReminders,30000); checkReminders();
+window.addEventListener('load',()=>{ setTimeout(initGoogleAuth,800); });
+if(window.speechSynthesis) window.speechSynthesis.onvoiceschanged=()=>{};
+updateStatus();
+
+setTimeout(()=>{
+  addMsg('ai','¡Hola! Soy VOZI. Toca la esfera para hablar o escribe aquí abajo. Puedo crear tareas, recordatorios y proyectos automáticamente. 🎙');
+},400);
+</script>
+</body>
+</html>
