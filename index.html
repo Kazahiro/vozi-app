@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Voz IA">
+<link rel="manifest" href="manifest.json">
+<title>Asistente de Voz IA</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c26;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --accent: #7c6aff;
+    --accent2: #a78bfa;
+    --accent-glow: rgba(124,106,255,0.18);
+    --text: #f0f0f5;
+    --muted: rgba(240,240,245,0.45);
+    --dimmed: rgba(240,240,245,0.22);
+    --green: #34d399;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --mono: 'DM Mono', monospace;
+    --display: 'Syne', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--display); overflow: hidden; }
+
+  /* LAYOUT */
+  .app { display: flex; flex-direction: column; height: 100dvh; max-width: 480px; margin: 0 auto; position: relative; }
+
+  /* HEADER */
+  .header {
+    padding: 16px 20px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    flex-shrink: 0;
+  }
+  .header-left { display: flex; align-items: center; gap: 10px; }
+  .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); animation: pulse-dot 2s infinite; }
+  @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(0.85)} }
+  .app-name { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
+  .header-tabs { display: flex; gap: 4px; background: var(--surface); border-radius: 8px; padding: 3px; border: 1px solid var(--border); }
+  .tab-btn { font-family: var(--display); font-size: 11px; font-weight: 500; padding: 5px 10px; border-radius: 6px; border: none; background: transparent; color: var(--muted); cursor: pointer; transition: all 0.15s; }
+  .tab-btn.active { background: var(--surface2); color: var(--text); }
+  .api-btn { font-family: var(--mono); font-size: 10px; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border2); background: transparent; color: var(--muted); cursor: pointer; transition: all 0.15s; }
+  .api-btn:hover { color: var(--text); border-color: var(--accent); }
+
+  /* TABS CONTENT */
+  .tab-content { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+  .tab-content.active { display: flex; }
+
+  /* VOICE TAB */
+  .voice-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; gap: 28px; }
+
+  .transcript-box {
+    width: 100%; min-height: 80px; max-height: 140px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 14px 16px;
+    font-family: var(--mono); font-size: 13px; color: var(--text);
+    line-height: 1.6; overflow-y: auto;
+    transition: border-color 0.3s;
+  }
+  .transcript-box.listening { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-glow); }
+  .transcript-box.empty { color: var(--dimmed); }
+
+  /* MIC BUTTON */
+  .mic-container { position: relative; display: flex; align-items: center; justify-content: center; }
+  .mic-rings { position: absolute; }
+  .ring {
+    position: absolute; border-radius: 50%; border: 1px solid var(--accent);
+    opacity: 0; transform: translate(-50%, -50%);
+    top: 50%; left: 50%;
+  }
+  .ring-1 { width: 110px; height: 110px; }
+  .ring-2 { width: 145px; height: 145px; }
+  .ring-3 { width: 185px; height: 185px; }
+  .listening .ring { animation: ring-expand 2s infinite; }
+  .listening .ring-2 { animation-delay: 0.4s; }
+  .listening .ring-3 { animation-delay: 0.8s; }
+  @keyframes ring-expand { 0%{opacity:0.5;transform:translate(-50%,-50%) scale(0.85)} 100%{opacity:0;transform:translate(-50%,-50%) scale(1)} }
+
+  .mic-btn {
+    width: 80px; height: 80px; border-radius: 50%;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    cursor: pointer; position: relative; z-index: 1;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s; outline: none;
+    -webkit-appearance: none;
+  }
+  .mic-btn:hover { border-color: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
+  .mic-btn.listening {
+    background: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 0 30px rgba(124,106,255,0.4);
+    animation: mic-pulse 1.5s infinite;
+  }
+  @keyframes mic-pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+  .mic-icon { font-size: 26px; transition: all 0.2s; }
+
+  .mic-label { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: 0.5px; }
+
+  /* WAVEFORM */
+  .waveform { display: flex; align-items: center; gap: 3px; height: 32px; opacity: 0; transition: opacity 0.3s; }
+  .waveform.active { opacity: 1; }
+  .wave-bar { width: 3px; border-radius: 2px; background: var(--accent); animation: none; }
+  .waveform.active .wave-bar { animation: wave 1s infinite ease-in-out; }
+  .wave-bar:nth-child(1){height:8px;animation-delay:0s}
+  .wave-bar:nth-child(2){height:16px;animation-delay:0.1s}
+  .wave-bar:nth-child(3){height:24px;animation-delay:0.2s}
+  .wave-bar:nth-child(4){height:18px;animation-delay:0.3s}
+  .wave-bar:nth-child(5){height:28px;animation-delay:0.15s}
+  .wave-bar:nth-child(6){height:20px;animation-delay:0.25s}
+  .wave-bar:nth-child(7){height:14px;animation-delay:0.05s}
+  @keyframes wave { 0%,100%{transform:scaleY(0.4)} 50%{transform:scaleY(1)} }
+
+  .action-row { display: flex; gap: 10px; width: 100%; }
+  .action-btn {
+    flex: 1; font-family: var(--display); font-size: 12px; font-weight: 500;
+    padding: 11px 14px; border-radius: 10px;
+    border: 1px solid var(--border2); background: var(--surface);
+    color: var(--muted); cursor: pointer; transition: all 0.15s;
+  }
+  .action-btn:hover { color: var(--text); border-color: var(--accent2); }
+  .action-btn.primary { background: var(--accent); border-color: var(--accent); color: white; }
+  .action-btn.primary:hover { background: var(--accent2); }
+  .action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* AI RESPONSE */
+  .ai-response-box {
+    margin: 0 20px 16px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 16px;
+    font-size: 13px; line-height: 1.65; color: var(--text);
+    flex-shrink: 0; display: none; max-height: 160px; overflow-y: auto;
+  }
+  .ai-response-box.visible { display: block; }
+  .ai-label { font-family: var(--mono); font-size: 10px; color: var(--accent2); letter-spacing: 0.5px; margin-bottom: 6px; }
+  .ai-thinking { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
+  .think-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: think 1.2s infinite; }
+  .think-dot:nth-child(2){animation-delay:0.2s} .think-dot:nth-child(3){animation-delay:0.4s}
+  @keyframes think { 0%,100%{opacity:0.3;transform:scale(0.8)} 50%{opacity:1;transform:scale(1)} }
+
+  /* NOTES TAB */
+  .notes-header { padding: 16px 20px 10px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .notes-title { font-size: 13px; font-weight: 600; }
+  .notes-count { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .filter-row { padding: 0 20px 12px; display: flex; gap: 6px; overflow-x: auto; flex-shrink: 0; scrollbar-width: none; }
+  .filter-row::-webkit-scrollbar { display: none; }
+  .filter-chip { font-family: var(--mono); font-size: 10px; padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border2); background: transparent; color: var(--muted); cursor: pointer; white-space: nowrap; transition: all 0.15s; }
+  .filter-chip.active { background: var(--accent); border-color: var(--accent); color: white; }
+  .notes-list { flex: 1; overflow-y: auto; padding: 0 20px 20px; display: flex; flex-direction: column; gap: 10px; scrollbar-width: thin; scrollbar-color: var(--surface2) transparent; }
+
+  .note-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 15px;
+    cursor: pointer; transition: border-color 0.15s;
+    position: relative; overflow: hidden;
+  }
+  .note-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .note-card.cat-nota::before { background: var(--accent); }
+  .note-card.cat-tarea::before { background: var(--amber); }
+  .note-card.cat-idea::before { background: var(--green); }
+  .note-card.cat-recordatorio::before { background: var(--red); }
+  .note-card:hover { border-color: var(--border2); }
+  .note-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+  .note-text { font-size: 13px; line-height: 1.55; flex: 1; }
+  .note-del { background: none; border: none; color: var(--dimmed); cursor: pointer; font-size: 14px; padding: 0 2px; transition: color 0.15s; flex-shrink: 0; }
+  .note-del:hover { color: var(--red); }
+  .note-meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .note-cat { font-family: var(--mono); font-size: 10px; padding: 2px 7px; border-radius: 4px; }
+  .note-cat.cat-nota { background: rgba(124,106,255,0.15); color: var(--accent2); }
+  .note-cat.cat-tarea { background: rgba(251,191,36,0.15); color: var(--amber); }
+  .note-cat.cat-idea { background: rgba(52,211,153,0.15); color: var(--green); }
+  .note-cat.cat-recordatorio { background: rgba(248,113,113,0.15); color: var(--red); }
+  .note-time { font-family: var(--mono); font-size: 10px; color: var(--dimmed); }
+  .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--dimmed); text-align: center; padding: 40px; }
+  .empty-state .empty-icon { font-size: 40px; opacity: 0.3; }
+  .empty-state p { font-size: 13px; line-height: 1.6; }
+
+  /* MODAL (API KEY) */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: none; align-items: center; justify-content: center; padding: 24px; backdrop-filter: blur(4px); }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border2); border-radius: 16px; padding: 24px; width: 100%; max-width: 380px; }
+  .modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .modal p { font-size: 12px; color: var(--muted); line-height: 1.6; margin-bottom: 16px; }
+  .modal input { width: 100%; background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px; padding: 10px 12px; font-family: var(--mono); font-size: 12px; color: var(--text); outline: none; margin-bottom: 12px; }
+  .modal input:focus { border-color: var(--accent); }
+  .modal-link { font-size: 11px; color: var(--accent2); margin-bottom: 16px; display: block; }
+  .modal-btns { display: flex; gap: 8px; }
+  .modal-cancel { flex: 1; background: transparent; border: 1px solid var(--border2); color: var(--muted); border-radius: 8px; padding: 10px; font-family: var(--display); font-size: 12px; cursor: pointer; }
+  .modal-save { flex: 2; background: var(--accent); border: none; color: white; border-radius: 8px; padding: 10px; font-family: var(--display); font-size: 12px; font-weight: 600; cursor: pointer; }
+  .modal-save:hover { background: var(--accent2); }
+
+  /* STATUS BAR */
+  .status-bar { padding: 8px 20px; display: flex; align-items: center; gap: 6px; flex-shrink: 0; border-top: 1px solid var(--border); }
+  .status-dot-sm { width: 6px; height: 6px; border-radius: 50%; }
+  .status-dot-sm.ok { background: var(--green); }
+  .status-dot-sm.warn { background: var(--amber); }
+  .status-text { font-family: var(--mono); font-size: 10px; color: var(--muted); flex: 1; }
+  .speech-support { font-family: var(--mono); font-size: 10px; color: var(--dimmed); }
+
+  /* KEYBOARD INPUT ROW */
+  .keyboard-row {
+    padding: 0 20px 12px;
+    display: flex; gap: 8px; align-items: flex-end; flex-shrink: 0;
+  }
+  .keyboard-row textarea {
+    flex: 1; background: var(--surface); border: 1px solid var(--border2);
+    border-radius: 10px; padding: 10px 12px;
+    font-family: var(--mono); font-size: 13px; color: var(--text);
+    resize: none; outline: none; line-height: 1.5; min-height: 44px; max-height: 120px;
+  }
+  .keyboard-row textarea:focus { border-color: var(--accent); }
+  .keyboard-row textarea::placeholder { color: var(--dimmed); }
+  .kb-send {
+    width: 44px; height: 44px; border-radius: 10px;
+    background: var(--accent); border: none; color: white;
+    font-size: 18px; cursor: pointer; flex-shrink: 0; transition: background 0.15s;
+  }
+  .kb-send:hover { background: var(--accent2); }
+
+  /* MIC PERMISSION BANNER */
+  .perm-banner {
+    margin: 0 20px 8px;
+    background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3);
+    border-radius: 10px; padding: 10px 14px; font-size: 12px;
+    color: var(--amber); line-height: 1.5; display: none;
+  }
+  .perm-banner.visible { display: block; }
+  .perm-banner a { color: var(--amber); text-decoration: underline; cursor: pointer; }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(60px); background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px; padding: 10px 16px; font-size: 12px; font-family: var(--mono); z-index: 200; transition: transform 0.25s; white-space: nowrap; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo-dot"></div>
+      <span class="app-name">Voz IA</span>
+    </div>
+    <div class="header-tabs">
+      <button class="tab-btn active" onclick="switchTab('voice')">🎙 Voz</button>
+      <button class="tab-btn" onclick="switchTab('notes')">📋 Notas</button>
+    </div>
+    <button class="api-btn" onclick="openModal()">API</button>
+  </header>
+
+  <!-- VOICE TAB -->
+  <div class="tab-content active" id="tab-voice">
+    <div class="voice-area">
+
+      <div class="transcript-box empty" id="transcript">
+        Pulsa el micrófono y habla...
+      </div>
+
+      <div class="mic-container" id="micContainer">
+        <div class="mic-rings" id="micRings">
+          <div class="ring ring-1"></div>
+          <div class="ring ring-2"></div>
+          <div class="ring ring-3"></div>
+        </div>
+        <button class="mic-btn" id="micBtn" onclick="toggleListening()" aria-label="Iniciar grabación de voz">
+          <span class="mic-icon" id="micIcon">🎙</span>
+        </button>
+      </div>
+
+      <div class="waveform" id="waveform">
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+      </div>
+
+      <span class="mic-label" id="micLabel">toca para hablar</span>
+
+      <div class="action-row">
+        <button class="action-btn" id="saveBtn" onclick="saveNote()" disabled>💾 Guardar nota</button>
+        <button class="action-btn primary" id="aiBtn" onclick="askAI()" disabled>✨ Procesar con IA</button>
+      </div>
+    </div>
+
+    <div class="perm-banner" id="permBanner">
+      ⚠ El micrófono solo funciona desde https://. Mientras tanto, <strong>escribe tu nota abajo</strong> — funciona igual. ↓
+    </div>
+
+    <div class="keyboard-row">
+      <textarea id="kbInput" placeholder="O escribe tu nota aquí y pulsa ↑..." rows="1"
+        oninput="autoResize(this)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitKb()}"></textarea>
+      <button class="kb-send" onclick="submitKb()" title="Enviar">↑</button>
+    </div>
+
+    <div class="ai-response-box" id="aiBox">
+      <div class="ai-label">✦ respuesta IA</div>
+      <div id="aiContent"></div>
+    </div>
+  </div>
+
+  <!-- NOTES TAB -->
+  <div class="tab-content" id="tab-notes">
+    <div class="notes-header">
+      <span class="notes-title">Mis notas</span>
+      <span class="notes-count" id="notesCount">0 notas</span>
+    </div>
+    <div class="filter-row">
+      <button class="filter-chip active" onclick="filterNotes('all', this)">Todas</button>
+      <button class="filter-chip" onclick="filterNotes('nota', this)">Notas</button>
+      <button class="filter-chip" onclick="filterNotes('tarea', this)">Tareas</button>
+      <button class="filter-chip" onclick="filterNotes('idea', this)">Ideas</button>
+      <button class="filter-chip" onclick="filterNotes('recordatorio', this)">Recordatorios</button>
+    </div>
+    <div class="notes-list" id="notesList"></div>
+  </div>
+
+  <!-- STATUS BAR -->
+  <div class="status-bar">
+    <div class="status-dot-sm" id="statusDot"></div>
+    <span class="status-text" id="statusText">Listo</span>
+    <span class="speech-support" id="speechSupport"></span>
+  </div>
+</div>
+
+<!-- API MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3>Conectar Claude API</h3>
+    <p>Necesitas una API key de Anthropic para usar la IA. Crea una cuenta gratuita y obtén tu key.</p>
+    <a class="modal-link" href="https://console.anthropic.com" target="_blank">→ console.anthropic.com (gratis)</a>
+    <input type="password" id="apiKeyInput" placeholder="sk-ant-..." autocomplete="off" />
+    <p style="margin-bottom:12px;margin-top:-4px">La key se guarda solo en tu dispositivo, nunca se envía a ningún servidor externo.</p>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="modal-save" onclick="saveApiKey()">Guardar key</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────
+let isListening = false;
+let recognition = null;
+let currentTranscript = '';
+let notes = JSON.parse(localStorage.getItem('vozia_notes') || '[]');
+let apiKey = localStorage.getItem('vozia_key') || '';
+let currentFilter = 'all';
+
+// ── SPEECH RECOGNITION ─────────────────────────────────
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const hasSpeech = !!SpeechRecognition;
+
+document.getElementById('speechSupport').textContent = hasSpeech ? '🎙 voz disponible' : '⚠ usa Chrome/Edge';
+
+function setupRecognition() {
+  if (!hasSpeech) return null;
+  const r = new SpeechRecognition();
+  r.lang = 'es-ES';
+  r.continuous = true;
+  r.interimResults = true;
+
+  r.onresult = (e) => {
+    let interim = '', final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      e.results[i].isFinal ? (final += t) : (interim += t);
+    }
+    if (final) currentTranscript += final;
+    const box = document.getElementById('transcript');
+    box.textContent = currentTranscript + (interim ? ' ' + interim : '');
+    box.classList.remove('empty');
+    updateActionBtns();
+  };
+
+  r.onerror = (e) => {
+    if (e.error !== 'no-speech') {
+      setStatus('Error: ' + e.error, 'warn');
+      stopListening();
+    }
+  };
+
+  r.onend = () => { if (isListening) r.start(); };
+  return r;
+}
+
+function toggleListening() {
+  if (!hasSpeech) { showToast('Usa Chrome o Edge para reconocimiento de voz'); return; }
+  if (isListening) { stopListening(); return; }
+  // Request permission explicitly FIRST, then start
+  navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(stream => {
+      // Permission granted — stop the stream (recognition manages its own)
+      stream.getTracks().forEach(t => t.stop());
+      document.getElementById('permBanner').classList.remove('visible');
+      startListening();
+    })
+    .catch(err => {
+      document.getElementById('permBanner').classList.add('visible');
+      setStatus('Permiso de micrófono denegado', 'warn');
+      showToast('Usa el campo de texto mientras tanto');
+    });
+}
+
+function startListening() {
+  recognition = setupRecognition();
+  recognition.start();
+  isListening = true;
+  document.getElementById('micBtn').classList.add('listening');
+  document.getElementById('micRings').classList.add('listening');
+  document.getElementById('waveform').classList.add('active');
+  document.getElementById('micIcon').textContent = '⏹';
+  document.getElementById('micLabel').textContent = 'escuchando... toca para parar';
+  const box = document.getElementById('transcript');
+  if (!currentTranscript) { box.textContent = ''; box.classList.add('listening'); }
+  setStatus('Escuchando...', 'ok');
+}
+
+function stopListening() {
+  isListening = false;
+  recognition?.stop();
+  document.getElementById('micBtn').classList.remove('listening');
+  document.getElementById('micRings').classList.remove('listening');
+  document.getElementById('waveform').classList.remove('active');
+  document.getElementById('micIcon').textContent = '🎙';
+  document.getElementById('micLabel').textContent = 'toca para hablar';
+  document.getElementById('transcript').classList.remove('listening');
+  setStatus('Listo', 'ok');
+}
+
+// ── SAVE NOTE ──────────────────────────────────────────
+function saveNote(text, category) {
+  const t = text || currentTranscript.trim();
+  if (!t) { showToast('Nada que guardar aún'); return; }
+  const cat = category || detectCategory(t);
+  const note = { id: Date.now(), text: t, category: cat, date: new Date().toISOString() };
+  notes.unshift(note);
+  localStorage.setItem('vozia_notes', JSON.stringify(notes));
+  currentTranscript = '';
+  const box = document.getElementById('transcript');
+  box.textContent = 'Pulsa el micrófono y habla...';
+  box.classList.add('empty');
+  updateActionBtns();
+  renderNotes();
+  updateCount();
+  showToast('✓ Nota guardada como "' + cat + '"');
+}
+
+function detectCategory(text) {
+  const t = text.toLowerCase();
+  if (/\b(recuerda|recordar|avisa|avísame|mañana|hoy a las|el lunes|el martes|el miércoles|el jueves|el viernes)\b/.test(t)) return 'recordatorio';
+  if (/\b(idea|qué tal si|podría|propuesta|proyecto|crear|desarrollar)\b/.test(t)) return 'idea';
+  if (/\b(hacer|comprar|llamar|enviar|pagar|terminar|completar|pendiente|necesito|debo)\b/.test(t)) return 'tarea';
+  return 'nota';
+}
+
+// ── ASK AI ─────────────────────────────────────────────
+async function askAI() {
+  const text = currentTranscript.trim();
+  if (!text) { showToast('Primero graba algo con el micrófono'); return; }
+  if (!apiKey) { openModal(); return; }
+
+  setStatus('Procesando con IA...', 'ok');
+  const box = document.getElementById('aiBox');
+  const content = document.getElementById('aiContent');
+  box.classList.add('visible');
+  content.innerHTML = '<div class="ai-thinking"><div class="think-dot"></div><div class="think-dot"></div><div class="think-dot"></div></div>';
+  document.getElementById('aiBtn').disabled = true;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 400,
+        system: `Eres un asistente personal conciso y motivador. El usuario te envía notas de voz en español. Tu tarea:
+1. Resume la nota de forma clara (1-2 frases)
+2. Detecta la categoría: nota / tarea / idea / recordatorio
+3. Si es una tarea, extrae los pasos concretos
+4. Añade una frase de motivación breve si aplica
+5. Responde SIEMPRE en español, de forma directa y sin rodeos. Máximo 120 palabras.`,
+        messages: [{ role: 'user', content: 'Nota de voz: "' + text + '"' }]
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const reply = data.content[0].text;
+    content.textContent = reply;
+
+    // Auto-save with AI-detected category
+    const catMatch = reply.toLowerCase().match(/\b(tarea|idea|recordatorio|nota)\b/);
+    const cat = catMatch ? catMatch[1] : detectCategory(text);
+    saveNote(text, cat);
+    setStatus('Procesado con IA ✓', 'ok');
+  } catch (err) {
+    content.textContent = 'Error: ' + (err.message.includes('401') ? 'API key inválida. Revísala en el botón API.' : err.message);
+    setStatus('Error de IA', 'warn');
+  } finally {
+    document.getElementById('aiBtn').disabled = false;
+  }
+}
+
+// ── RENDER NOTES ───────────────────────────────────────
+function renderNotes() {
+  const list = document.getElementById('notesList');
+  const filtered = currentFilter === 'all' ? notes : notes.filter(n => n.category === currentFilter);
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🎙</div><p>Aquí aparecerán tus notas de voz.<br>Graba algo con el micrófono.</p></div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(n => {
+    const d = new Date(n.date);
+    const time = d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    return `<div class="note-card cat-${n.category}">
+      <div class="note-top">
+        <span class="note-text">${escapeHtml(n.text)}</span>
+        <button class="note-del" onclick="deleteNote(${n.id})" aria-label="Borrar nota">✕</button>
+      </div>
+      <div class="note-meta">
+        <span class="note-cat cat-${n.category}">${n.category}</span>
+        <span class="note-time">${time}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function deleteNote(id) {
+  notes = notes.filter(n => n.id !== id);
+  localStorage.setItem('vozia_notes', JSON.stringify(notes));
+  renderNotes();
+  updateCount();
+  showToast('Nota eliminada');
+}
+
+function filterNotes(cat, btn) {
+  currentFilter = cat;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  renderNotes();
+}
+
+function updateCount() {
+  document.getElementById('notesCount').textContent = notes.length + ' nota' + (notes.length !== 1 ? 's' : '');
+}
+
+// ── UTILS ──────────────────────────────────────────────
+function updateActionBtns() {
+  const has = currentTranscript.trim().length > 0;
+  document.getElementById('saveBtn').disabled = !has;
+  document.getElementById('aiBtn').disabled = !has;
+}
+
+function setStatus(msg, type) {
+  document.getElementById('statusText').textContent = msg;
+  const dot = document.getElementById('statusDot');
+  dot.className = 'status-dot-sm ' + (type || 'ok');
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  event.target.classList.add('active');
+  if (tab === 'notes') renderNotes();
+}
+
+function openModal() { document.getElementById('modal').classList.add('open'); document.getElementById('apiKeyInput').value = apiKey; }
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+function saveApiKey() {
+  const k = document.getElementById('apiKeyInput').value.trim();
+  if (!k.startsWith('sk-ant-')) { showToast('La key debe empezar por sk-ant-'); return; }
+  apiKey = k;
+  localStorage.setItem('vozia_key', k);
+  closeModal();
+  setStatus('API key guardada ✓', 'ok');
+  showToast('✓ API key guardada');
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function submitKb() {
+  const el = document.getElementById('kbInput');
+  const text = el.value.trim();
+  if (!text) return;
+  currentTranscript = text;
+  const box = document.getElementById('transcript');
+  box.textContent = text;
+  box.classList.remove('empty');
+  el.value = '';
+  el.style.height = 'auto';
+  updateActionBtns();
+  showToast('Texto listo — pulsa "Guardar nota" o "Procesar con IA"');
+}
+
+// ── INIT ───────────────────────────────────────────────
+renderNotes();
+updateCount();
+setStatus(apiKey ? 'IA conectada ✓' : 'Sin API key — solo guardado local', apiKey ? 'ok' : 'warn');
+document.getElementById('statusDot').className = 'status-dot-sm ' + (apiKey ? 'ok' : 'warn');
+
+// Show mic warning if opened as local file
+if (location.protocol === 'file:') {
+  document.getElementById('permBanner').classList.add('visible');
+}
+</script>
+</body>
+</html>
